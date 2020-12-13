@@ -126,7 +126,7 @@ bool Editor::InputMsg(std::wstring msg)
 			}
 		}
 
-		int line = std::stoi(str_line)-1;
+		int line = std::stoi(str_line)-1 + print_line_position_;
 		int position = std::stoi(str_position)-1;
 
 		if (line < 0 || line >= lines_.size() || position < 0 || position >= lines_[line]->words.size())
@@ -193,7 +193,7 @@ bool Editor::InputMsg(std::wstring msg)
 						}
 					}
 
-					int line = std::stoi(str_line)-1;
+					int line = std::stoi(str_line)-1 + print_line_position_;
 					int position = std::stoi(str_position)-1;
 					if (line < 0 || line >= lines_.size() || position < 0 || position >= lines_[line]->words.size())
 					{
