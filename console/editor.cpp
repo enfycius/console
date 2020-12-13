@@ -89,6 +89,7 @@ bool Editor::InputMsg(std::wstring msg)
 				2. 숫자가 아닌 경우
 				3. (,1) 같은 경우
 		*/
+		std::wstring str_line, str_position;
 		if (msg.size() < 6)
 		{
 			setMsg(L"Input value is not valid");
@@ -96,7 +97,7 @@ bool Editor::InputMsg(std::wstring msg)
 		}
 
 		size_t split_position = msg.find(',');
-		if(split_position == std::wstring::npos)
+		if(split_position == std::wstring::npos || msg.size() < 6)
 		{
 			// d(,)
 			std::wstring error_msg = msg + L" is not valid";
