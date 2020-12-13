@@ -83,7 +83,20 @@ bool Editor::InputMsg(std::wstring msg)
 	}
 	else if (msg.front() == L'd')
 	{
+		/*
+			[예외처리]
+				1. 공백문자
+				2. 숫자가 아닌 경우
+				3. (,1) 같은 경우
+		*/
 		std::wstring str_line, str_position;
+
+		size_t space_test = msg.find(' ');
+		if (space_test != std::wstring::npos)
+		{
+			setMsg(L"Input value is not valid");
+			return true;
+		}
 
 		size_t split_position = msg.find(',');
 		if(split_position == std::wstring::npos || msg.size() < 6)
@@ -141,6 +154,14 @@ bool Editor::InputMsg(std::wstring msg)
 	}
 	else if (msg.front() == L'i')
 	{
+	// 공백문자 제거
+	size_t space_test = msg.find(' ');
+	if (space_test != std::wstring::npos)
+	{
+		setMsg(L"Input value is not valid");
+		return true;
+	}
+
 		std::wstring str_line, str_position, text;
 		size_t split_position = msg.find(',');
 		size_t start_position = 2;
