@@ -42,7 +42,7 @@ bool Editor::InputMsg(std::wstring msg)
 	}
 	else if (msg == L"t")
 	{
-		return Save();
+		return !Save();
 	}
 	else if (msg.front() == L'c')
 	{
@@ -80,6 +80,153 @@ bool Editor::InputMsg(std::wstring msg)
 				print_line_position_ = retval;
 		}
 		return true;
+	}
+	else if (msg.front() == L'd')
+	{
+		std::wstring str_line, str_position;
+
+		size_t split_position = msg.find(',');
+		if(split_position == std::wstring::npos || msg.size() < 6)
+		{
+			// d(,)
+			std::wstring error_msg = msg + L" is not valid";
+			setMsg(error_msg);
+			return true;
+		}
+		str_line = msg.substr(2, split_position - 2);
+		str_position = msg.substr(split_position + 1);
+		str_position.pop_back();
+
+		// 입력받은 데이터가 숫자 범위인지 체크
+		for (auto i : str_line)
+		{
+			if (!isdigit(i))
+			{
+				setMsg(L"Input value is not valid");
+				return true;
+			}
+		}
+		for (auto i : str_position)
+		{
+			if (!isdigit(i))
+			{
+				setMsg(L"Input value is not valid");
+				return true;
+			}
+		}
+
+		int line = std::stoi(str_line)-1;
+		int position = std::stoi(str_position)-1;
+
+		if (line < 0 || line >= lines_.size() || position < 0 || position >= lines_[line]->words.size())
+		{
+			setMsg(L"Input value is not valid");
+			return true;
+		}
+
+		int count = 0;
+		auto temp = lines_[line];
+		auto iter = temp->words.begin();
+		auto endIter = temp->words.end();
+		for (; iter != endIter;iter++, count++)
+		{
+			if (count == position)
+			{
+				temp->bytes -= iter->size();
+				temp->words.erase(iter);
+				break;
+			}
+		}
+		DeleteRearrange(line);
+	}
+	else if (msg.front() == L'i')
+	{
+		std::wstring str_line, str_position, text;
+		size_t split_position = msg.find(',');
+		size_t start_position = 2;
+		if (split_position != std::wstring::npos)
+		{
+			str_line = msg.substr(start_position, split_position-start_position);
+			start_position = split_position + 1;
+			split_position = msg.find(',', start_position);
+			if (split_position != std::wstring::npos)
+			{
+				str_position = msg.substr(start_position, (split_position - start_position));
+				start_position = split_position + 1;
+				split_position = msg.find(')', start_position);
+				if (split_position != std::wstring::npos)
+				{
+					text = msg.substr(start_position, (split_position - start_position));
+
+					// 입력받은 데이터가 숫자 범위인지 체크
+					for (auto i : str_line)
+					{
+						if (!isdigit(i))
+						{
+							setMsg(L"Input value is not valid");
+							return true;
+						}
+					}
+					for (auto i : str_position)
+					{
+						if (!isdigit(i))
+						{
+							setMsg(L"Input value is not valid");
+							return true;
+						}
+					}
+
+					int line = std::stoi(str_line)-1;
+					int position = std::stoi(str_position)-1;
+					if (line < 0 || line >= lines_.size() || position < 0 || position >= lines_[line]->words.size())
+					{
+						setMsg(L"Input value is not valid");
+						return true;
+					}
+
+					if (text.size() > 75 || text.empty())
+					{
+						setMsg(L"Input value is not valid");
+						return true;
+					}
+					// 라인의 제일 마지막 자리에 삽입되는 경우
+					auto temp = lines_[line];
+					if (position == temp->words.size())
+					{
+						if (temp->bytes <= 75)
+						{
+							temp->words.push_back(text);
+							temp->bytes += text.size();
+							return true;
+						}
+						lines_[line + 1]->words.push_front(text);
+						lines_[line + 1]->bytes += text.size();
+						InsertRearrange(line + 1);
+						return true;
+					}
+
+					int count = 0;
+					auto iter = temp->words.begin();
+					auto endIter = temp->words.end();
+					for (; iter != endIter; iter++, count++)
+					{
+						if (count == position)
+						{
+							iter++;
+							if (iter == endIter)
+								temp->words.push_back(text);
+							else
+								temp->words.insert(iter, text);
+							break;
+						}
+					}
+					temp->bytes += text.size();
+					InsertRearrange(line);
+					return true;
+				}
+			}
+
+		}
 	}
 }
 
@@ -252,4 +399,44 @@ void Editor::setCursor(const int print_line_count)
 	cursor.X = cursor_position_.second;
 
 	SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), cursor);
+}
+
+void Editor::DeleteRearrange(const int start_line)
+{
+	if (lines_[start_line]->bytes >= 75)
+		return;
+
+	for (int i = 0; (start_line + i) < (lines_.size()-1); i++)
+	{
+		int now_line = i + start_line;
+		if (lines_[now_line]->bytes >= 75)
+			break;
+
+		auto word = lines_[now_line+1]->words.front();
+		lines_[now_line+1]->words.pop_front();
+		lines_[now_line+1]->bytes -= word.size();
+
+		lines_[now_line]->words.push_back(word);
+		lines_[now_line]->bytes += word.size();
+	}
+}
+
+void Editor::InsertRearrange(const int start_line)
+{
+	if (lines_[start_line]->bytes <= 75)
+		return;
+
+	for (int i = 0; (start_line + i) < (lines_.size() - 1); i++)
+	{
+		int now_line = i + start_line;
+		if (lines_[now_line]->bytes <= 75)
+			break;
+
+		auto word = lines_[now_line]->words.back();
+		lines_[now_line ]->words.pop_back();
+		lines_[now_line ]->bytes -= word.size();
+
+		lines_[now_line+1]->words.push_front(word);
+		lines_[now_line+1]->bytes += word.size();
+	}
 }

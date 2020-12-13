@@ -30,6 +30,9 @@ private:
 	const std::wstring getMsg();
 
 	void setCursor(const int print_line_count);
+
+	void DeleteRearrange(const int start_line);
+	void InsertRearrange(const int start_line);
 public:
 	Editor(const std::wstring file_name);
 	bool Start();
