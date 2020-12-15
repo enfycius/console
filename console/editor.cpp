@@ -34,11 +34,11 @@ bool Editor::InputMsg(std::wstring msg)
 	}
 	else if (msg == L"p")
 	{
-		if (print_line_position_ - 20 < 0)
+		if (print_line_position_ == 0)
 			setMsg(L"This is the front page!");
 		else
-			print_line_position_ -= 20;
-		return true;
+			print_line_position_ = ((print_line_position_ - 20) > 0) ? (print_line_position_ - 20 ): 0;
+			return true;
 	}
 	else if (msg == L"t")
 	{
@@ -109,46 +109,26 @@ bool Editor::InputMsg(std::wstring msg)
 		str_position.pop_back();
 
 		// 입력받은 데이터가 숫자 범위인지 체크
-		for (auto i : str_line)
+		if(!IsDigit(str_line) || !IsDigit(str_position))
 		{
-			if (!isdigit(i))
-			{
 				setMsg(L"Input value is not valid");
 				return true;
-			}
-		}
-		for (auto i : str_position)
-		{
-			if (!isdigit(i))
-			{
-				setMsg(L"Input value is not valid");
-				return true;
-			}
 		}
 
 		int line = std::stoi(str_line)-1 + print_line_position_;
 		int position = std::stoi(str_position)-1;
 
-		if (line < 0 || line >= lines_.size() || position < 0 || position >= lines_[line]->words.size())
+		if (line < 0 || line >= lines_.size())
 		{
 			setMsg(L"Input value is not valid");
 			return true;
 		}
 
-		int count = 0;
 		auto temp = lines_[line];
-		auto iter = temp->words.begin();
-		auto endIter = temp->words.end();
-		for (; iter != endIter;iter++, count++)
-		{
-			if (count == position)
-			{
-				temp->bytes -= iter->size();
-				temp->words.erase(iter);
-				break;
-			}
-		}
-		DeleteRearrange(line);
+		if (temp->PopPosition(position))
+			DeleteRearrange(line);
+		else
+			setMsg(L"Input value is not valid");
 	}
 	else if (msg.front() == L'i')
 	{
@@ -176,26 +156,16 @@ bool Editor::InputMsg(std::wstring msg)
 					text = msg.substr(start_position, (split_position - start_position));
 
 					// 입력받은 데이터가 숫자 범위인지 체크
-					for (auto i : str_line)
+
+					if(!IsDigit(str_line) || !IsDigit(str_position))
 					{
-						if (!isdigit(i))
-						{
-							setMsg(L"Input value is not valid");
-							return true;
-						}
-					}
-					for (auto i : str_position)
-					{
-						if (!isdigit(i))
-						{
-							setMsg(L"Input value is not valid");
-							return true;
-						}
+						setMsg(L"Input value is not valid");
+						return true;
 					}
 
 					int line = std::stoi(str_line)-1 + print_line_position_;
 					int position = std::stoi(str_position)-1;
-					if (line < 0 || line >= lines_.size() || position < 0 || position >= lines_[line]->words.size())
+					if (line < 0 || line >= lines_.size())
 					{
 						setMsg(L"Input value is not valid");
 						return true;
@@ -206,44 +176,17 @@ bool Editor::InputMsg(std::wstring msg)
 						setMsg(L"Input value is not valid");
 						return true;
 					}
+
 					// 라인의 제일 마지막 자리에 삽입되는 경우
 					auto temp = lines_[line];
-					if (position == temp->words.size())
-					{
-						if (temp->bytes <= 75)
-						{
-							temp->words.push_back(text);
-							temp->bytes += text.size();
-							return true;
-						}
-						lines_[line + 1]->words.push_front(text);
-						lines_[line + 1]->bytes += text.size();
-						InsertRearrange(line + 1);
-						return true;
-					}
-
-					int count = 0;
-					auto iter = temp->words.begin();
-					auto endIter = temp->words.end();
-					for (; iter != endIter; iter++, count++)
-					{
-						if (count == position)
-						{
-							iter++;
-							if (iter == endIter)
-								temp->words.push_back(text);
-							else
-								temp->words.insert(iter, text);
-							break;
-						}
-					}
-					temp->bytes += text.size();
+					temp->SearchPush(position, text);
 					InsertRearrange(line);
 					return true;
 				}
 			}
-
 		}
+		setMsg(L"Input value is not valid");
+		return true;
 	}
 }
 
@@ -302,20 +245,11 @@ bool Editor::SaveFile()
 	}
 	for (auto i : lines_)
 	{
-		if (i->bytes == 0)
-			file << std::endl;
-		else 
-		{
-			for (auto j : i->words)
-				file << j << L' ';
-		}
+		i->SaveWords(file);
+		WordPool::GetInstance().Free(i);
 	}
 	file.close();
 
-	for (auto i : lines_)
-	{
-		WordPool::GetInstance().Free(i);
-	}
 	return true;
 }
 
@@ -332,13 +266,12 @@ void Editor::Parser(const std::wstring file_data)
 		lines_.push_back(new TextLine());
 		return;
 	}
-	int line_bytes = 0;
 	size_t now_position = 0, end_position = 0;
 	bool is_end = false;
 	while (true)
 	{
 		TextLine* temp = WordPool::GetInstance().GetAlloc();
-		while (line_bytes <= 75)
+		while (temp->GetByte() <= 75)
 		{
 			end_position = file_data.find(' ', now_position);
 			if (end_position == std::string::npos)
@@ -351,14 +284,13 @@ void Editor::Parser(const std::wstring file_data)
 					end_position = file_data.size();
 			}
 			size_t str_size = end_position - now_position;
-			temp->words.push_back(file_data.substr(now_position, str_size));
+			temp->Push(file_data.substr(now_position, str_size));
+			
 			now_position = end_position + 1;
-			line_bytes += str_size;
+
 			if (is_end)
 				break;
 		}
-		temp->bytes = line_bytes;
-		line_bytes = 0;
 		lines_.push_back(temp);
 		if (is_end)
 			return;
@@ -368,31 +300,21 @@ void Editor::Parser(const std::wstring file_data)
 
 void Editor::PrintLine(const int offset)
 {
-	for (auto i : lines_[print_line_position_ + offset]->words)
-		std::wcout << i << ' ';
+	lines_[print_line_position_ + offset]->Print();
 }
 
 void Editor::ChangeText(const std::wstring source, const std::wstring dest)
 {
 	for (auto i : lines_)
-	{
-		for (auto j : i->words)
-		{
-			if (j == source)
-				j = dest;
-		}
-	}
+		i->ChangeWord(source, dest);
 }
 
 int Editor::GetTextLine(const std::wstring source)
 {
 	for (int i = 0; i < lines_.size(); i++)
 	{
-		for (auto j : lines_[i]->words)
-		{
-			if (j == source)
-				return i;
-		}
+		if (lines_[i]->SearchText(source))
+			return i;
 	}
 	return -1;
 }
@@ -420,40 +342,53 @@ void Editor::setCursor(const int print_line_count)
 
 void Editor::DeleteRearrange(const int start_line)
 {
-	if (lines_[start_line]->bytes >= 75)
+	if (lines_[start_line]->GetByte() >= 75)
 		return;
 
 	for (int i = 0; (start_line + i) < (lines_.size()-1); i++)
 	{
 		int now_line = i + start_line;
-		if (lines_[now_line]->bytes >= 75)
+		if (lines_[now_line]->GetByte() >= 75)
 			break;
 
-		auto word = lines_[now_line+1]->words.front();
-		lines_[now_line+1]->words.pop_front();
-		lines_[now_line+1]->bytes -= word.size();
-
-		lines_[now_line]->words.push_back(word);
-		lines_[now_line]->bytes += word.size();
+		while (lines_[now_line]->GetByte() < 75)
+		{
+			auto retval = lines_[now_line + 1]->Pop(false);
+			if (retval == L"")
+				break;
+			lines_[now_line]->Push(retval);
+		}
 	}
 }
 
 void Editor::InsertRearrange(const int start_line)
 {
-	if (lines_[start_line]->bytes <= 75)
+	if (lines_[start_line]->GetByte() <= 75)
 		return;
 
 	for (int i = 0; (start_line + i) < (lines_.size() - 1); i++)
 	{
 		int now_line = i + start_line;
-		if (lines_[now_line]->bytes <= 75)
+		if (lines_[now_line]->GetByte() <= 75)
 			break;
 
-		auto word = lines_[now_line]->words.back();
-		lines_[now_line ]->words.pop_back();
-		lines_[now_line ]->bytes -= word.size();
-
-		lines_[now_line+1]->words.push_front(word);
-		lines_[now_line+1]->bytes += word.size();
+		while (lines_[now_line]->GetByte() > 75)
+		{
+			auto retval = lines_[now_line]->Pop();
+			if (retval == L"")
+				break;
+			lines_[now_line + 1]->Push(retval, false);
+		}
 	}
+}
+
+bool Editor::IsDigit(const std::wstring str)
+{
+	for (auto i : str)
+	{
+		if (!isdigit(i))
+			return false;
+	}
+
+	return true;
 }
