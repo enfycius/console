@@ -33,6 +33,9 @@ private:
 
 	void DeleteRearrange(const int start_line);
 	void InsertRearrange(const int start_line);
+
+	bool IsDigit(const std::wstring str);
+
 public:
 	Editor(const std::wstring file_name);
 	bool Start();
