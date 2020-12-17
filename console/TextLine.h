@@ -4,7 +4,7 @@ class TextLine {
 private:
 	std::list<std::wstring> words_;
 	int bytes_;
-	bool is_enter;
+	bool is_enter_;	// '\n'만 존재하는 라인
 
 private:
 	void SetByte(const int size, const bool is_plus = true);
@@ -23,4 +23,5 @@ public:
 	bool ChangeWord(const std::wstring source, const std::wstring dest);
 
 	bool GetEnter();
+	void SetEnter();
 };

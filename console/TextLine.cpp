@@ -4,7 +4,7 @@
 TextLine::TextLine()
 {
 	bytes_ = 0;
-	is_enter = true;
+	is_enter_ = false;
 }
 
 void TextLine::SetByte(const int size, const bool is_plus)
@@ -152,5 +152,10 @@ bool TextLine::SearchText(const std::wstring str)
 
 bool TextLine::GetEnter()
 {
-	return is_enter;
+	return is_enter_;
+}
+
+void TextLine::SetEnter()
+{
+	is_enter_ = true;
 }

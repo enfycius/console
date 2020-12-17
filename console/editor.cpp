@@ -26,7 +26,7 @@ bool Editor::InputMsg(std::wstring msg)
 	if (msg == L"n")
 	{
 		// Print next page
-		if (lines_.size() < (print_line_position_ + 20))
+		if (lines_.size() == (print_line_position_ + 20))
 			setMsg(L"This is the last page!");
 		else
 			print_line_position_ += 20;
@@ -126,7 +126,13 @@ bool Editor::InputMsg(std::wstring msg)
 
 		auto temp = lines_[line];
 		if (temp->PopPosition(position))
-			DeleteRearrange(line);
+		{
+			// '\n'만 존재하는 라인 제거 로직
+			if (temp->GetByte() == 0)
+				lines_.erase(lines_.begin() + line);
+			else
+				DeleteRearrange(line);
+		}
 		else
 			setMsg(L"Input value is not valid");
 	}
@@ -261,9 +267,10 @@ bool Editor::SaveFile()
 
 void Editor::Parser(const std::wstring file_data)
 {
-	if (file_data == L"\r")
+	if (file_data == L"")
 	{
 		lines_.push_back(new TextLine());
+		lines_.back()->SetEnter();
 		return;
 	}
 	size_t now_position = 0, end_position = 0;
@@ -348,7 +355,7 @@ void Editor::DeleteRearrange(const int start_line)
 	for (int i = 0; (start_line + i) < (lines_.size()-1); i++)
 	{
 		int now_line = i + start_line;
-		if (lines_[now_line]->GetByte() >= 75)
+		if (lines_[now_line]->GetByte() >= 75 || lines_[now_line+1]->GetEnter())
 			break;
 
 		while (lines_[now_line]->GetByte() < 75)
@@ -357,6 +364,8 @@ void Editor::DeleteRearrange(const int start_line)
 			if (retval == L"")
 				break;
 			lines_[now_line]->Push(retval);
+			if (lines_[now_line + 1]->GetByte() == 0 && !lines_[now_line + 1]->GetEnter())
+				lines_.erase(lines_.begin() + now_line + 1);
 		}
 	}
 }
@@ -366,19 +375,26 @@ void Editor::InsertRearrange(const int start_line)
 	if (lines_[start_line]->GetByte() <= 75)
 		return;
 
-	for (int i = 0; (start_line + i) < (lines_.size() - 1); i++)
+	int i = 0;
+	while (true)
 	{
 		int now_line = i + start_line;
 		if (lines_[now_line]->GetByte() <= 75)
 			break;
 
+		if (now_line + 1 >= lines_.size())
+			lines_.push_back(WordPool::GetInstance().GetAlloc());
+
 		while (lines_[now_line]->GetByte() > 75)
 		{
 			auto retval = lines_[now_line]->Pop();
-			if (retval == L"")
-				break;
+
+			if (lines_[now_line + 1]->GetEnter())
+				lines_.insert(lines_.begin() + now_line + 1, WordPool::GetInstance().GetAlloc());
+
 			lines_[now_line + 1]->Push(retval, false);
 		}
+		i++;
 	}
 }
 
