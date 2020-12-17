@@ -6,7 +6,6 @@ Editor::Editor(const std::wstring file_name)
 	file_name_ = file_name;
 	print_line_position_ = 0;
 	cursor_position_ = {5,8};
-	setlocale(LC_ALL, "ko-KR");
 }
 
 bool Editor::Start()
@@ -199,13 +198,13 @@ bool Editor::InputMsg(std::wstring msg)
 void Editor::Print()
 {
 	system("cls");
-	std::cout.setf(std::ios::right);
+	std::wcout.setf(std::ios::right);
 	int count = 0;
 	for (count; count < 20 && (print_line_position_ + count) < lines_.size(); count++)
 	{
-		std::cout << std::setw(2) << (count + 1) << "| ";
+		std::wcout << std::setw(2) << (count + 1) << "| ";
 		PrintLine(count);
-		std::cout << std::endl;
+		std::wcout << std::endl;
 	}
 	std::wcout <<L"------------------------------------------------------------------------------------------"<<std::endl;
 	std::wcout <<L"n : 다음페이지, p: 이전페이지, i : 삽입, d:삭제, c : 변경, s : 찾기, t : 저장후종료" << std::endl;
@@ -224,13 +223,14 @@ void Editor::Print()
 */
 bool Editor::OpenFile()
 {
-	std::wifstream file(file_name_.c_str(),std::ios::in);
+	std::wifstream file(file_name_.c_str(),std::ios::in|std::ios::binary);
 	if (!file.is_open())
 	{
 		std::wstring msg = file_name_ + L"is not exists!";
 		setMsg(msg);
 		return false;
 	}
+	file.imbue(std::locale(std::locale::empty(), new std::codecvt_utf8<wchar_t, 0x10ffff, std::consume_header>));
 	std::wstring text;
 
 	while (std::getline(file,text))
@@ -269,7 +269,7 @@ void Editor::Parser(const std::wstring file_data)
 {
 	if (file_data == L"")
 	{
-		lines_.push_back(new TextLine());
+		lines_.push_back(WordPool::GetInstance().GetAlloc());
 		lines_.back()->SetEnter();
 		return;
 	}

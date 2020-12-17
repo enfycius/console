@@ -3,11 +3,15 @@
 
 #include "stdafx.h"
 
+#include <io.h>
+#include <fcntl.h>
 WordPool* WordPool::instance_ = nullptr;
 
 int main()
 {
-    Editor *editor = new Editor(L"test.txt");
+	_setmode(_fileno(stdout), _O_U8TEXT);
+
+    Editor *editor = new Editor(L"test1.txt");
 	editor->Start();
 
 	while (true)
